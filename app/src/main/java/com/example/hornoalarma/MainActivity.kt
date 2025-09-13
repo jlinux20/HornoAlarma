@@ -14,6 +14,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.WindowManager
@@ -53,7 +55,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var isRunning = false
     private var currentStepName = ""
     private var textToSpeech: TextToSpeech? = null
-    private var toneGenerator: ToneGenerator? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private lateinit var timerUpdateReceiver: BroadcastReceiver
 
@@ -105,7 +106,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setupSpinner()
         setupListeners()
         initializeTextToSpeech()
-        initializeToneGenerator()
         setupBroadcastReceiver()
     }
 
@@ -223,12 +223,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun initializeTextToSpeech() {
-        textToSpeech = TextToSpeech(this, this)
+        textToSpeech = TextToSpeech(this, this).apply {
+            setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) {
+                    Log.d("MainActivity", "TTS onStart: $utteranceId")
+                }
+
+                override fun onDone(utteranceId: String?) {
+                    Log.d("MainActivity", "TTS onDone: $utteranceId")
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun onError(utteranceId: String?) {
+                    Log.e("MainActivity", "TTS onError: $utteranceId")
+                }
+            })
+        }
     }
 
-    private fun initializeToneGenerator() {
-        toneGenerator = ToneGenerator(AudioManager.STREAM_ALARM, 100)
-    }
 
     private fun setupBroadcastReceiver() {
         timerUpdateReceiver = object : BroadcastReceiver() {
@@ -469,21 +481,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun playAlarmAndVoice(message: String) {
         Thread {
+            var localToneGenerator: ToneGenerator? = null
             try {
-                val durations = intArrayOf(400, 400, 400, 400, 600)
+                Log.d("MainActivity", "playAlarmAndVoice: Starting tone generation.")
+                localToneGenerator = ToneGenerator(AudioManager.STREAM_ALARM, 100)
+                val durations = intArrayOf(200, 200, 200, 200, 500)
                 for (dur in durations) {
-                    toneGenerator?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, dur)
-                    Thread.sleep((dur + 100).toLong())
+                    localToneGenerator?.startTone(ToneGenerator.TONE_PROP_ACK, dur)
+                    Thread.sleep((dur + 50).toLong())
                 }
-                Thread.sleep(500)
-                runOnUiThread {
-                    var fullMessage = message
-                    val randomTip = getRandomTip()
-                    fullMessage += ". Consejo del día: $randomTip"
-                    speakCompat(fullMessage)
-                }
+                Thread.sleep(500) // Pausa antes de hablar
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MainActivity", "Error in tone generation thread", e)
+            } finally {
+                localToneGenerator?.release()
+                Log.d("MainActivity", "playAlarmAndVoice: ToneGenerator released.")
+            }
+
+            runOnUiThread {
+                Log.d("MainActivity", "playAlarmAndVoice: Starting TTS on UI thread.")
+                var fullMessage = message
+                val randomTip = getRandomTip()
+                fullMessage += ". Consejo del día: $randomTip"
+                speakCompat(fullMessage)
             }
         }.start()
     }
@@ -495,16 +515,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun speakCompat(text: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "alarm_speech")
-        } else {
-            @Suppress("DEPRECATION")
-            val params = HashMap<String, String>().apply {
-                put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "alarm_speech_old")
-            }
-            @Suppress("DEPRECATION")
-            textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, params)
-        }
+        val params = Bundle()
+        params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "alarm_speech")
+        // Forzar el uso del canal de música para evitar interferencias de tonos del sistema
+        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
+
+        // Limpiar la cola y añadir un breve silencio antes de hablar
+        textToSpeech?.playSilentUtterance(250, TextToSpeech.QUEUE_FLUSH, "silence")
+        textToSpeech?.speak(text, TextToSpeech.QUEUE_ADD, params, "alarm_speech")
     }
 
     private fun showGuidesDialog() {
@@ -549,7 +567,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onDestroy()
         textToSpeech?.stop()
         textToSpeech?.shutdown()
-        toneGenerator?.release()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
