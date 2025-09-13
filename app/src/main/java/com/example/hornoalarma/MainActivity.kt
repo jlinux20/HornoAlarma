@@ -256,14 +256,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
                     "TIMER_STEP_FINISHED" -> {
                         val recipe = getCurrentRecipe() ?: return
-                        playAlarmAndVoice("Tiempo terminado para ${recipe.steps[currentStep].name}. Ahora cambiar el soplete al ${recipe.steps[currentStep + 1].name} por ${recipe.steps[currentStep + 1].timeMinutes} minutos")
                         currentStep++
                         currentStepName = recipe.steps[currentStep].name
                     }
 
                     "TIMER_ALL_FINISHED" -> {
                         val recipe = getCurrentRecipe() ?: return
-                        playAlarmAndVoice("¡Horneado terminado! Tu ${recipe.name} está listo. Revisar el pan y retirar del horno con cuidado")
                         isRunning = false
                         btnStartPause.text = getString(R.string.start_timer)
                         btnStartPause.setBackgroundResource(R.drawable.button_start_background)
