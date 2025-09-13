@@ -11,7 +11,7 @@ import android.content.pm.ServiceInfo
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import android.app.Service.STOP_FOREGROUND_REMOVE
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import android.os.Build
@@ -63,11 +63,7 @@ class TimerService : Service() {
             isRunning = true
             saveState()
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(NOTIFICATION_ID, createNotification(recipeName, stepName, timeMinutes), ServiceInfo.FOREGROUND_SERVICE_TYPE_NONE)
-                } else {
-                    startForeground(NOTIFICATION_ID, createNotification(recipeName, stepName, timeMinutes))
-                }
+                startForeground(NOTIFICATION_ID, createNotification(recipeName, stepName, timeMinutes), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
                 startTimer()
             } catch (e: Exception) {
                 Log.e("TimerService", "Error starting foreground service", e)
@@ -89,7 +85,7 @@ class TimerService : Service() {
                 countDownTimer?.cancel()
                 countDownTimer = null
                 saveState()
-                stopForeground(true)
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
             ACTION_STOP_TIMER -> {
@@ -97,7 +93,7 @@ class TimerService : Service() {
                 countDownTimer?.cancel()
                 countDownTimer = null
             saveState()
-            stopForeground(true)
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             }
         }
@@ -140,11 +136,7 @@ class TimerService : Service() {
         steps = Gson().fromJson(stepsJson, Array<MainActivity.Step>::class.java).toList()
         if (isRunning) {
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(NOTIFICATION_ID, createNotification(recipeName, stepName, (timeLeft / 60000).toInt()), ServiceInfo.FOREGROUND_SERVICE_TYPE_NONE)
-                } else {
-                    startForeground(NOTIFICATION_ID, createNotification(recipeName, stepName, (timeLeft / 60000).toInt()))
-                }
+                startForeground(NOTIFICATION_ID, createNotification(recipeName, stepName, (timeLeft / 60000).toInt()), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
                 startTimer()
             } catch (e: Exception) {
                 Log.e("TimerService", "Error starting foreground service on loadState", e)
@@ -199,7 +191,7 @@ class TimerService : Service() {
             putExtra("timeLeft", timeLeft)
             putExtra("currentStep", currentStep)
         }
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+        sendBroadcast(intent)
     }
 
     private fun onTimerFinished() {
@@ -209,12 +201,12 @@ class TimerService : Service() {
             stepName = steps[currentStep].name
             saveState()
             startTimer()
-            LocalBroadcastManager.getInstance(this).sendBroadcast(Intent("TIMER_STEP_FINISHED"))
+            sendBroadcast(Intent("TIMER_STEP_FINISHED"))
         } else {
-            LocalBroadcastManager.getInstance(this).sendBroadcast(Intent("TIMER_ALL_FINISHED"))
+            sendBroadcast(Intent("TIMER_ALL_FINISHED"))
             isRunning = false
             saveState()
-            stopForeground(true)
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
@@ -225,6 +217,6 @@ class TimerService : Service() {
         super.onDestroy()
         countDownTimer?.cancel()
         saveState()
-        stopForeground(true)
+        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 }

@@ -23,7 +23,7 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
+
 import com.google.gson.Gson
 import java.util.*
 
@@ -572,7 +572,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     override fun onPause() {
         super.onPause()
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(timerUpdateReceiver)
+        unregisterReceiver(timerUpdateReceiver)
         if (wakeLock?.isHeld == true) {
             wakeLock?.release()
         }
@@ -580,12 +580,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     override fun onResume() {
         super.onResume()
-        LocalBroadcastManager.getInstance(this)
-            .registerReceiver(timerUpdateReceiver, IntentFilter("TIMER_UPDATE"))
-        LocalBroadcastManager.getInstance(this)
-            .registerReceiver(timerUpdateReceiver, IntentFilter("TIMER_STEP_FINISHED"))
-        LocalBroadcastManager.getInstance(this)
-            .registerReceiver(timerUpdateReceiver, IntentFilter("TIMER_ALL_FINISHED"))
+        registerReceiver(timerUpdateReceiver, IntentFilter("TIMER_UPDATE"))
+        registerReceiver(timerUpdateReceiver, IntentFilter("TIMER_STEP_FINISHED"))
+        registerReceiver(timerUpdateReceiver, IntentFilter("TIMER_ALL_FINISHED"))
         if (isRunning) {
             updateStepCounter()
             updateProgressDots()
