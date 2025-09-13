@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">HornoAlarma</string>
+    <string name="start_timer">▶ Iniciar</string>
+    <string name="pause_timer">⏸ Pausar</string>
+    <string name="continue_timer">▶ Continuar</string>
+    <string name="time_display">00:00</string>
+    <string name="ready_to_start">Listo para comenzar</string>
+    <string name="step_counter">Paso %1$d de %2$d</string>
+</resources>
